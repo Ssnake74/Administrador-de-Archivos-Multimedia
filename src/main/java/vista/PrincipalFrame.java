@@ -1,86 +1,109 @@
-// PrincipalFrame.java
-
 package vista;
 
-import control.BuscadorArchivos;
-import modelo.DetallesAudio;
-
 import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.io.File;
-import java.util.List;
 
 public class PrincipalFrame extends JFrame {
 
-    private JButton btnSeleccionarCarpeta;
-    private JButton btnAbrirReproductor;
-    private JLabel lblRuta;
-    private JTable tablaArchivos;
-    private DefaultTableModel modeloTabla;
-    private JLabel vistaPreviaImagen;
+    private CardLayout cardLayout;
+    private JPanel mainPanel;
+    private ReproductorMusicaPanel reproductorMusicaPanel;
+    private ReproductorVideoPanel reproductorVideoPanel;
+    private ImagenesGaleria imagenesGaleria;
+    private JLabel titulo;
+    private File rutaSeleccionada;
 
     public PrincipalFrame() {
         setTitle("Administrador de Archivos Multimedia");
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        initUI();
+
+        // Configuración de CardLayout para cambiar entre paneles
+        cardLayout = new CardLayout();
+        mainPanel = new JPanel(cardLayout);
+
+        // Inicializar paneles de cada funcionalidad
+        reproductorMusicaPanel = new ReproductorMusicaPanel(this);
+        reproductorVideoPanel = new ReproductorVideoPanel(this);
+        imagenesGaleria = new ImagenesGaleria(this);
+
+        // Añadir paneles de música, video y galería
+        mainPanel.add(new JPanel(), "empty"); // Panel vacío inicial
+        mainPanel.add(reproductorMusicaPanel, "musica");
+        mainPanel.add(reproductorVideoPanel, "video");
+        mainPanel.add(imagenesGaleria, "galeria");
+
+        // Crear menú de botones y añadir al frame
+        JPanel menuPanel = crearMenuPanel();
+        add(menuPanel, BorderLayout.NORTH);
+        add(mainPanel, BorderLayout.CENTER);
+
+        setVisible(true);
     }
 
-    private void initUI() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout());
+    private JPanel crearMenuPanel() {
+        JPanel menuPanel = new JPanel();
+        menuPanel.setLayout(new BorderLayout());
 
-        btnSeleccionarCarpeta = new JButton("Seleccionar Carpeta de Búsqueda");
-        btnAbrirReproductor = new JButton("Abrir Reproductor");
+        // Título
+        titulo = new JLabel("Reproductor de Multimedia", JLabel.CENTER);
+        titulo.setFont(new Font("Arial", Font.BOLD, 24));
+        menuPanel.add(titulo, BorderLayout.NORTH);
 
-        lblRuta = new JLabel("Ruta seleccionada: Ninguna");
+        // Botones
+        JPanel botonPanel = new JPanel(new GridLayout(1, 3, 20, 0));
+        botonPanel.setBorder(BorderFactory.createEmptyBorder(20, 50, 20, 50));
 
-        // Action listener para seleccionar la carpeta
-        btnSeleccionarCarpeta.addActionListener(e -> seleccionarCarpeta());
-
-        // Action listener para abrir el reproductor con el archivo seleccionado
-        btnAbrirReproductor.addActionListener(e -> abrirReproductor());
-
-        // Configuración de la tabla y otros elementos de la interfaz
-        modeloTabla = new DefaultTableModel();
-        modeloTabla.addColumn("Nombre del Archivo");
-        modeloTabla.addColumn("Ruta");
-
-        tablaArchivos = new JTable(modeloTabla);
-        JScrollPane scrollPane = new JScrollPane(tablaArchivos);
-
-        vistaPreviaImagen = new JLabel();
-        vistaPreviaImagen.setHorizontalAlignment(JLabel.CENTER);
-        vistaPreviaImagen.setVerticalAlignment(JLabel.CENTER);
-        vistaPreviaImagen.setPreferredSize(new Dimension(200, 200));
-
-        JPanel panelVistaPrevia = new JPanel(new BorderLayout());
-        panelVistaPrevia.add(new JLabel("Vista Previa:"), BorderLayout.NORTH);
-        panelVistaPrevia.add(vistaPreviaImagen, BorderLayout.CENTER);
-
-        tablaArchivos.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
-            @Override
-            public void valueChanged(ListSelectionEvent e) {
-                mostrarVistaPrevia();
+        // Botón Música
+        JButton btnMusica = new JButton("Música");
+        btnMusica.addActionListener(e -> {
+            if (rutaSeleccionada != null) {
+                reproductorMusicaPanel.cargarArchivos();
+                cardLayout.show(mainPanel, "musica");
+            } else {
+                JOptionPane.showMessageDialog(this, "Seleccione una carpeta primero.");
             }
         });
 
-        // Panel de botones en la parte superior
-        JPanel panelBotones = new JPanel();
-        panelBotones.add(btnSeleccionarCarpeta);
-        panelBotones.add(btnAbrirReproductor);
+        // Botón Video
+        JButton btnVideo = new JButton("Video");
+        btnVideo.addActionListener(e -> {
+            if (rutaSeleccionada != null) {
+                reproductorVideoPanel.cargarArchivos();
+                cardLayout.show(mainPanel, "video");
+            } else {
+                JOptionPane.showMessageDialog(this, "Seleccione una carpeta primero.");
+            }
+        });
 
-        panel.add(panelBotones, BorderLayout.NORTH);
-        panel.add(lblRuta, BorderLayout.CENTER);
-        panel.add(scrollPane, BorderLayout.WEST);
-        panel.add(panelVistaPrevia, BorderLayout.EAST);
+        // Botón Galería
+        JButton btnGaleria = new JButton("Galería");
+        btnGaleria.addActionListener(e -> {
+            if (rutaSeleccionada != null) {
+                imagenesGaleria.cargarArchivos();
+                cardLayout.show(mainPanel, "galeria");
+            } else {
+                JOptionPane.showMessageDialog(this, "Seleccione una carpeta primero.");
+            }
+        });
 
-        add(panel);
+        // Añadir botones al panel de botones
+        botonPanel.add(btnMusica);
+        botonPanel.add(btnVideo);
+        botonPanel.add(btnGaleria);
+
+        // Botón para seleccionar carpeta
+        JButton btnSeleccionarCarpeta = new JButton("Seleccionar Carpeta");
+        btnSeleccionarCarpeta.addActionListener((ActionEvent e) -> seleccionarCarpeta());
+        menuPanel.add(btnSeleccionarCarpeta, BorderLayout.SOUTH);
+
+        // Añadir panel de botones al menú principal
+        menuPanel.add(botonPanel, BorderLayout.CENTER);
+
+        return menuPanel;
     }
 
     private void seleccionarCarpeta() {
@@ -89,81 +112,13 @@ public class PrincipalFrame extends JFrame {
         int result = fileChooser.showOpenDialog(this);
 
         if (result == JFileChooser.APPROVE_OPTION) {
-            File selectedDirectory = fileChooser.getSelectedFile();
-            lblRuta.setText("Ruta seleccionada: " + selectedDirectory.getAbsolutePath());
-
-            modeloTabla.setRowCount(0);
-
-            BuscadorArchivos buscador = new BuscadorArchivos();
-            List<File> archivosEncontrados = buscador.buscarArchivosMultimedia(selectedDirectory);
-
-            for (File archivo : archivosEncontrados) {
-                String nombreArchivo = archivo.getName().toLowerCase();
-                if (nombreArchivo.endsWith(".jpg") || nombreArchivo.endsWith(".png") || nombreArchivo.endsWith(".gif") ||
-                    nombreArchivo.endsWith(".mp3") || nombreArchivo.endsWith(".mp4")) {
-                    modeloTabla.addRow(new Object[]{archivo.getName(), archivo.getAbsolutePath()});
-                }
-            }
+            rutaSeleccionada = fileChooser.getSelectedFile();
+            JOptionPane.showMessageDialog(this, "Carpeta seleccionada: " + rutaSeleccionada.getAbsolutePath());
         }
     }
 
-    private void mostrarVistaPrevia() {
-        int selectedRow = tablaArchivos.getSelectedRow();
-        if (selectedRow != -1) {
-            String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
-            File archivo = new File(rutaArchivo);
-            String nombreArchivo = archivo.getName().toLowerCase();
-            if (nombreArchivo.endsWith(".jpg") || nombreArchivo.endsWith(".png") || nombreArchivo.endsWith(".gif")) {
-                ImageIcon icono = new ImageIcon(new ImageIcon(rutaArchivo).getImage().getScaledInstance(200, 200, Image.SCALE_SMOOTH));
-                vistaPreviaImagen.setIcon(icono);
-            } else {
-                vistaPreviaImagen.setIcon(null);
-            }
-        }
-    }
-
-    private void abrirReproductor() {
-        int selectedRow = tablaArchivos.getSelectedRow();
-        if (selectedRow != -1) {
-            String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
-            File archivo = new File(rutaArchivo);
-            String nombreArchivo = archivo.getName().toLowerCase();
-
-            if (nombreArchivo.endsWith(".mp3") || nombreArchivo.endsWith(".mp4")) {
-                new ReproductorFrame(archivo, this).setVisible(true);
-            } else {
-                JOptionPane.showMessageDialog(this, "Seleccione un archivo de audio o video (MP3 o MP4).");
-            }
-        }
-    }
-
-    // Métodos en PrincipalFrame para obtener el siguiente y anterior archivo
-    public File obtenerSiguienteArchivo(File archivoActual) {
-        int currentRow = getRowByFile(archivoActual);
-        if (currentRow != -1 && currentRow < modeloTabla.getRowCount() - 1) {
-            String rutaArchivo = (String) modeloTabla.getValueAt(currentRow + 1, 1);
-            return new File(rutaArchivo);
-        }
-        return null;
-    }
-
-    public File obtenerAnteriorArchivo(File archivoActual) {
-        int currentRow = getRowByFile(archivoActual);
-        if (currentRow > 0) {
-            String rutaArchivo = (String) modeloTabla.getValueAt(currentRow - 1, 1);
-            return new File(rutaArchivo);
-        }
-        return null;
-    }
-
-    // Método auxiliar para encontrar el índice del archivo en la tabla
-    private int getRowByFile(File archivo) {
-        for (int i = 0; i < modeloTabla.getRowCount(); i++) {
-            if (((String) modeloTabla.getValueAt(i, 1)).equals(archivo.getAbsolutePath())) {
-                return i;
-            }
-        }
-        return -1;
+    public File getRutaSeleccionada() {
+        return rutaSeleccionada;
     }
 
     public static void main(String[] args) {
