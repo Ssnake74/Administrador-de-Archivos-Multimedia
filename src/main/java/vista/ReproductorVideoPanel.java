@@ -1,5 +1,9 @@
 package vista;
 
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.Directory;
+import com.drew.metadata.Tag;
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -33,6 +37,18 @@ public class ReproductorVideoPanel extends JPanel {
 
         tablaVideos = new JTable(modeloTabla);
         tablaVideos.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        
+        tablaVideos.getSelectionModel().addListSelectionListener(e -> {
+    if (!e.getValueIsAdjusting()) {
+        int selectedRow = tablaVideos.getSelectedRow();
+        if (selectedRow != -1) {
+            String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
+            File archivo = new File(rutaArchivo);
+            reproducirVideo(archivo);
+            mostrarMetadatosVideo(archivo);  // Llamada para mostrar metadatos
+        }
+    }
+});
 
         tablaVideos.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -161,4 +177,32 @@ public class ReproductorVideoPanel extends JPanel {
             }
         }
     }
+    private void mostrarMetadatosVideo(File archivo) {
+    try {
+        // Leer los metadatos del archivo de video
+        Metadata metadata = ImageMetadataReader.readMetadata(archivo);
+
+        StringBuilder metadatos = new StringBuilder();
+
+        for (Directory directory : metadata.getDirectories()) {
+            for (Tag tag : directory.getTags()) {
+                metadatos.append(tag.getTagName()).append(": ").append(tag.getDescription()).append("\n");
+            }
+        }
+
+        // Crear un JTextArea para mostrar los metadatos con JScrollPane para permitir desplazamiento
+        JTextArea textArea = new JTextArea(metadatos.toString());
+        textArea.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(textArea);
+
+        // Establecer tamaño máximo para la ventana de metadatos
+        scrollPane.setPreferredSize(new Dimension(400, 300)); // Ajusta el tamaño según sea necesario
+
+        // Mostrar el cuadro de diálogo
+        JOptionPane.showMessageDialog(this, scrollPane, "Metadatos de Video", JOptionPane.INFORMATION_MESSAGE);
+
+    } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, "No se pueden extraer metadatos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+    }
+}
 }

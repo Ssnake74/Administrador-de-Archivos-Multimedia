@@ -1,8 +1,10 @@
 vista\ReproductorMusicaPanel$1.class
 vista\ReproductorVideoPanel$1.class
 vista\ReproductorVideoPanel.class
+control\ArchivoDuplicadoDetector.class
 com\juliosagastume\proyectofinal_juliosagastume\ProyectoFinal_JulioSagastume.class
 vista\PrincipalFrame.class
 vista\ReproductorMusicaPanel.class
+vista\ImagenesGaleria$2.class
 vista\ImagenesGaleria$1.class
 vista\ImagenesGaleria.class

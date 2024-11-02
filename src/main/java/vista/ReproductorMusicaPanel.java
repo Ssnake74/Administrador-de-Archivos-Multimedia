@@ -1,5 +1,13 @@
 package vista;
 
+import org.apache.tika.Tika;
+import org.apache.tika.metadata.Metadata;
+import org.jaudiotagger.audio.AudioFile;
+import org.jaudiotagger.audio.AudioFileIO;
+import org.jaudiotagger.tag.FieldKey;
+import org.jaudiotagger.tag.Tag;
+import org.apache.tika.Tika;
+import org.apache.tika.metadata.Metadata;
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -34,13 +42,15 @@ public class ReproductorMusicaPanel extends JPanel {
         tablaMusica = new JTable(modeloTabla);
         tablaMusica.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        // Agregar el listener para mostrar metadatos al seleccionar un archivo
         tablaMusica.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 int selectedRow = tablaMusica.getSelectedRow();
                 if (selectedRow != -1) {
                     String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
                     File archivo = new File(rutaArchivo);
-                    reproducirMusica(archivo);
+                    mostrarMetadatosMusica(archivo);  // Mostrar metadatos del archivo seleccionado
+                    reproducirMusica(archivo);       // Reproducir el archivo seleccionado
                 }
             }
         });
@@ -161,4 +171,51 @@ public class ReproductorMusicaPanel extends JPanel {
             }
         }
     }
+private void mostrarMetadatosMusica(File archivo) {
+    try {
+        if (archivo.getName().toLowerCase().endsWith(".mp3")) {
+            // Usar jaudiotagger para archivos MP3
+            AudioFile audioFile = AudioFileIO.read(archivo);
+            Tag tag = audioFile.getTag();
+
+            String artista = (tag != null && tag.getFirst(FieldKey.ARTIST) != null) ? tag.getFirst(FieldKey.ARTIST) : "Desconocido";
+            String album = (tag != null && tag.getFirst(FieldKey.ALBUM) != null) ? tag.getFirst(FieldKey.ALBUM) : "Desconocido";
+            String genero = (tag != null && tag.getFirst(FieldKey.GENRE) != null) ? tag.getFirst(FieldKey.GENRE) : "Desconocido";
+            String duracion = audioFile.getAudioHeader().getTrackLength() + " segundos";
+            String año = (tag != null && tag.getFirst(FieldKey.YEAR) != null) ? tag.getFirst(FieldKey.YEAR) : "Desconocido";
+
+            // Mostrar los metadatos para MP3
+            JOptionPane.showMessageDialog(this,
+                    "Artista: " + artista + "\n" +
+                    "Álbum: " + album + "\n" +
+                    "Género: " + genero + "\n" +
+                    "Duración: " + duracion + "\n" +
+                    "Año: " + año,
+                    "Metadatos de Música (MP3)",
+                    JOptionPane.INFORMATION_MESSAGE);
+
+        } else if (archivo.getName().toLowerCase().endsWith(".wma")) {
+            // Usar Apache Tika para extraer metadatos de WMA
+            Tika tika = new Tika();
+            Metadata metadata = new Metadata();
+            tika.parse(archivo, metadata);
+
+            StringBuilder metadatos = new StringBuilder();
+            for (String nombre : metadata.names()) {
+                metadatos.append(nombre).append(": ").append(metadata.get(nombre)).append("\n");
+            }
+
+            // Mostrar todos los metadatos extraídos por Tika
+            JOptionPane.showMessageDialog(this,
+                    metadatos.toString(),
+                    "Metadatos de Música (WMA)",
+                    JOptionPane.INFORMATION_MESSAGE);
+
+        } else {
+            JOptionPane.showMessageDialog(this, "Formato de archivo no soportado para metadatos", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, "No se pueden extraer metadatos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+    }
+}
 }

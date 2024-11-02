@@ -8,6 +8,10 @@ import java.awt.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.Directory;
+import com.drew.metadata.Tag;
 
 public class ImagenesGaleria extends JPanel {
 
@@ -33,6 +37,21 @@ public class ImagenesGaleria extends JPanel {
 
         tablaImagenes = new JTable(modeloTabla);
         tablaImagenes.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        
+        tablaImagenes.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+    @Override
+    public void valueChanged(ListSelectionEvent e) {
+        if (!e.getValueIsAdjusting()) {
+            int selectedRow = tablaImagenes.getSelectedRow();
+            if (selectedRow != -1) {
+                String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
+                File archivo = new File(rutaArchivo);
+                mostrarVistaPrevia(archivo);
+                mostrarMetadatosImagen(archivo);  // Llamada para mostrar metadatos
+            }
+        }
+    }
+});
 
         tablaImagenes.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
             @Override
@@ -129,4 +148,24 @@ public class ImagenesGaleria extends JPanel {
             tablaImagenes.setRowSelectionInterval(selectedRow + 1, selectedRow + 1);
         }
     }
+    private void mostrarMetadatosImagen(File archivo) {
+    try {
+        // Leer los metadatos del archivo de imagen
+        Metadata metadata = ImageMetadataReader.readMetadata(archivo);
+        
+        StringBuilder metadatos = new StringBuilder();
+        
+        for (Directory directory : metadata.getDirectories()) {
+            for (Tag tag : directory.getTags()) {
+                metadatos.append(tag.getTagName()).append(": ").append(tag.getDescription()).append("\n");
+            }
+        }
+
+        // Mostrar los metadatos en un cuadro de diálogo
+        JOptionPane.showMessageDialog(this, metadatos.toString(), "Metadatos de Imagen", JOptionPane.INFORMATION_MESSAGE);
+        
+    } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, "No se pueden extraer metadatos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+    }
+}
 }
