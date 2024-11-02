@@ -8,6 +8,7 @@ import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.io.File;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ public class ReproductorVideoPanel extends JPanel {
     private JSlider barraProgreso;
     private JButton btnPausa, btnSiguiente, btnAnterior;
     private Timer actualizacionProgreso;
+    private JLabel espacioTotalLabel;
 
     public ReproductorVideoPanel(PrincipalFrame principal) {
         this.principal = principal;
@@ -34,21 +36,12 @@ public class ReproductorVideoPanel extends JPanel {
         modeloTabla = new DefaultTableModel();
         modeloTabla.addColumn("Nombre del Archivo");
         modeloTabla.addColumn("Ruta");
+        modeloTabla.addColumn("Tamaño (MB)");
 
         tablaVideos = new JTable(modeloTabla);
         tablaVideos.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        
-        tablaVideos.getSelectionModel().addListSelectionListener(e -> {
-    if (!e.getValueIsAdjusting()) {
-        int selectedRow = tablaVideos.getSelectedRow();
-        if (selectedRow != -1) {
-            String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
-            File archivo = new File(rutaArchivo);
-            reproducirVideo(archivo);
-            mostrarMetadatosVideo(archivo);  // Llamada para mostrar metadatos
-        }
-    }
-});
+
+        tablaVideos.setAutoCreateRowSorter(true);
 
         tablaVideos.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -57,6 +50,7 @@ public class ReproductorVideoPanel extends JPanel {
                     String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
                     File archivo = new File(rutaArchivo);
                     reproducirVideo(archivo);
+                    mostrarMetadatosVideo(archivo);
                 }
             }
         });
@@ -92,6 +86,9 @@ public class ReproductorVideoPanel extends JPanel {
 
         mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
 
+        espacioTotalLabel = new JLabel("Espacio total ocupado: Calculando...");
+        panelControl.add(espacioTotalLabel);
+
         add(scrollPane, BorderLayout.WEST);
         add(mediaPlayerComponent, BorderLayout.CENTER);
         add(panelControl, BorderLayout.SOUTH);
@@ -99,13 +96,17 @@ public class ReproductorVideoPanel extends JPanel {
 
     public void cargarArchivos() {
         modeloTabla.setRowCount(0);
+        long espacioTotal = 0;
 
         File rutaSeleccionada = principal.getRutaSeleccionada();
         if (rutaSeleccionada != null && rutaSeleccionada.isDirectory()) {
             List<File> archivosVideo = buscarArchivosVideo(rutaSeleccionada);
             for (File archivo : archivosVideo) {
-                modeloTabla.addRow(new Object[]{archivo.getName(), archivo.getAbsolutePath()});
+                long tamañoMB = archivo.length() / (1024 * 1024); 
+                espacioTotal += tamañoMB;
+                modeloTabla.addRow(new Object[]{archivo.getName(), archivo.getAbsolutePath(), tamañoMB});
             }
+            espacioTotalLabel.setText("Espacio total ocupado: " + espacioTotal + " MB");
         }
     }
 
@@ -177,32 +178,28 @@ public class ReproductorVideoPanel extends JPanel {
             }
         }
     }
+
     private void mostrarMetadatosVideo(File archivo) {
-    try {
-        // Leer los metadatos del archivo de video
-        Metadata metadata = ImageMetadataReader.readMetadata(archivo);
+        try {
+            Metadata metadata = ImageMetadataReader.readMetadata(archivo);
 
-        StringBuilder metadatos = new StringBuilder();
+            StringBuilder metadatos = new StringBuilder();
 
-        for (Directory directory : metadata.getDirectories()) {
-            for (Tag tag : directory.getTags()) {
-                metadatos.append(tag.getTagName()).append(": ").append(tag.getDescription()).append("\n");
+            for (Directory directory : metadata.getDirectories()) {
+                for (Tag tag : directory.getTags()) {
+                    metadatos.append(tag.getTagName()).append(": ").append(tag.getDescription()).append("\n");
+                }
             }
+
+            JTextArea textArea = new JTextArea(metadatos.toString());
+            textArea.setEditable(false);
+            JScrollPane scrollPane = new JScrollPane(textArea);
+            scrollPane.setPreferredSize(new Dimension(400, 300));
+
+            JOptionPane.showMessageDialog(this, scrollPane, "Metadatos de Video", JOptionPane.INFORMATION_MESSAGE);
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "No se pueden extraer metadatos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-
-        // Crear un JTextArea para mostrar los metadatos con JScrollPane para permitir desplazamiento
-        JTextArea textArea = new JTextArea(metadatos.toString());
-        textArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(textArea);
-
-        // Establecer tamaño máximo para la ventana de metadatos
-        scrollPane.setPreferredSize(new Dimension(400, 300)); // Ajusta el tamaño según sea necesario
-
-        // Mostrar el cuadro de diálogo
-        JOptionPane.showMessageDialog(this, scrollPane, "Metadatos de Video", JOptionPane.INFORMATION_MESSAGE);
-
-    } catch (Exception e) {
-        JOptionPane.showMessageDialog(this, "No se pueden extraer metadatos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
     }
-}
 }

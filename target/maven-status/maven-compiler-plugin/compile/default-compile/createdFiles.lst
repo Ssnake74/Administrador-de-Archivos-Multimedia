@@ -4,7 +4,8 @@ vista\ReproductorVideoPanel.class
 control\ArchivoDuplicadoDetector.class
 com\juliosagastume\proyectofinal_juliosagastume\ProyectoFinal_JulioSagastume.class
 vista\PrincipalFrame.class
+modelo\Playlist.class
 vista\ReproductorMusicaPanel.class
-vista\ImagenesGaleria$2.class
-vista\ImagenesGaleria$1.class
+vista\PlaylistPanel.class
 vista\ImagenesGaleria.class
+vista\PlaylistPanel$1.class

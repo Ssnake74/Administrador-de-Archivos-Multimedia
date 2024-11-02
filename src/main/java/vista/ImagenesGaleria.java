@@ -21,6 +21,7 @@ public class ImagenesGaleria extends JPanel {
     private JLabel vistaPreviaImagen;
     private JButton btnAnterior;
     private JButton btnSiguiente;
+    private JLabel espacioTotalLabel;
 
     public ImagenesGaleria(PrincipalFrame principal) {
         this.principal = principal;
@@ -34,34 +35,21 @@ public class ImagenesGaleria extends JPanel {
         modeloTabla = new DefaultTableModel();
         modeloTabla.addColumn("Nombre del Archivo");
         modeloTabla.addColumn("Ruta");
+        modeloTabla.addColumn("Tamaño (MB)");
 
         tablaImagenes = new JTable(modeloTabla);
         tablaImagenes.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        
-        tablaImagenes.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
-    @Override
-    public void valueChanged(ListSelectionEvent e) {
-        if (!e.getValueIsAdjusting()) {
-            int selectedRow = tablaImagenes.getSelectedRow();
-            if (selectedRow != -1) {
-                String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
-                File archivo = new File(rutaArchivo);
-                mostrarVistaPrevia(archivo);
-                mostrarMetadatosImagen(archivo);  // Llamada para mostrar metadatos
-            }
-        }
-    }
-});
 
-        tablaImagenes.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
-            @Override
-            public void valueChanged(ListSelectionEvent e) {
-                if (!e.getValueIsAdjusting()) {
-                    int selectedRow = tablaImagenes.getSelectedRow();
-                    if (selectedRow != -1) {
-                        String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
-                        mostrarVistaPrevia(new File(rutaArchivo));
-                    }
+        tablaImagenes.setAutoCreateRowSorter(true);
+
+        tablaImagenes.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int selectedRow = tablaImagenes.getSelectedRow();
+                if (selectedRow != -1) {
+                    String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
+                    File archivo = new File(rutaArchivo);
+                    mostrarVistaPrevia(archivo);
+                    mostrarMetadatosImagen(archivo);
                 }
             }
         });
@@ -73,12 +61,10 @@ public class ImagenesGaleria extends JPanel {
         vistaPreviaImagen.setVerticalAlignment(JLabel.CENTER);
         vistaPreviaImagen.setPreferredSize(new Dimension(400, 400));
 
-        // Panel de vista previa
         JPanel panelVistaPrevia = new JPanel(new BorderLayout());
         panelVistaPrevia.add(new JLabel("Vista Previa"), BorderLayout.NORTH);
         panelVistaPrevia.add(vistaPreviaImagen, BorderLayout.CENTER);
 
-        // Panel de navegación
         JPanel panelNavegacion = new JPanel(new FlowLayout());
         btnAnterior = new JButton("⬅️ Anterior");
         btnSiguiente = new JButton("Siguiente ➡️");
@@ -89,7 +75,9 @@ public class ImagenesGaleria extends JPanel {
         panelNavegacion.add(btnAnterior);
         panelNavegacion.add(btnSiguiente);
 
-        // Agregar paneles
+        espacioTotalLabel = new JLabel("Espacio total ocupado: Calculando...");
+        panelNavegacion.add(espacioTotalLabel);
+
         panelVistaPrevia.add(panelNavegacion, BorderLayout.SOUTH);
 
         add(scrollPane, BorderLayout.WEST);
@@ -98,13 +86,17 @@ public class ImagenesGaleria extends JPanel {
 
     public void cargarArchivos() {
         modeloTabla.setRowCount(0);
+        long espacioTotal = 0;
 
         File rutaSeleccionada = principal.getRutaSeleccionada();
         if (rutaSeleccionada != null && rutaSeleccionada.isDirectory()) {
             List<File> archivosImagen = buscarArchivosImagen(rutaSeleccionada);
             for (File archivo : archivosImagen) {
-                modeloTabla.addRow(new Object[]{archivo.getName(), archivo.getAbsolutePath()});
+                long tamañoMB = archivo.length() / (1024 * 1024); 
+                espacioTotal += tamañoMB; 
+                modeloTabla.addRow(new Object[]{archivo.getName(), archivo.getAbsolutePath(), tamañoMB});
             }
+            espacioTotalLabel.setText("Espacio total ocupado: " + espacioTotal + " MB");
         }
     }
 
@@ -148,24 +140,29 @@ public class ImagenesGaleria extends JPanel {
             tablaImagenes.setRowSelectionInterval(selectedRow + 1, selectedRow + 1);
         }
     }
-    private void mostrarMetadatosImagen(File archivo) {
-    try {
-        // Leer los metadatos del archivo de imagen
-        Metadata metadata = ImageMetadataReader.readMetadata(archivo);
-        
-        StringBuilder metadatos = new StringBuilder();
-        
-        for (Directory directory : metadata.getDirectories()) {
-            for (Tag tag : directory.getTags()) {
-                metadatos.append(tag.getTagName()).append(": ").append(tag.getDescription()).append("\n");
-            }
-        }
 
-        // Mostrar los metadatos en un cuadro de diálogo
-        JOptionPane.showMessageDialog(this, metadatos.toString(), "Metadatos de Imagen", JOptionPane.INFORMATION_MESSAGE);
-        
-    } catch (Exception e) {
-        JOptionPane.showMessageDialog(this, "No se pueden extraer metadatos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+    private void mostrarMetadatosImagen(File archivo) {
+        try {
+            Metadata metadata = ImageMetadataReader.readMetadata(archivo);
+            StringBuilder metadatos = new StringBuilder();
+
+            for (Directory directory : metadata.getDirectories()) {
+                for (Tag tag : directory.getTags()) {
+                    metadatos.append(tag.getTagName()).append(": ").append(tag.getDescription()).append("\n");
+                }
+            }
+
+            JTextArea areaTexto = new JTextArea(metadatos.toString());
+            areaTexto.setEditable(false);
+            areaTexto.setLineWrap(true);
+            areaTexto.setWrapStyleWord(true);
+            JScrollPane scrollPane = new JScrollPane(areaTexto);
+            scrollPane.setPreferredSize(new Dimension(400, 300));
+
+            JOptionPane.showMessageDialog(this, scrollPane, "Metadatos de Imagen", JOptionPane.INFORMATION_MESSAGE);
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "No se pueden extraer metadatos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
-}
 }
