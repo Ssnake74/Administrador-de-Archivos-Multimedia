@@ -1,8 +1,6 @@
 package vista;
 
 import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.io.File;
@@ -23,6 +21,11 @@ public class ImagenesGaleria extends JPanel {
     private JButton btnSiguiente;
     private JLabel espacioTotalLabel;
 
+    private JButton btnMostrarMetadatos;
+    private JTextArea metadataTextArea;
+    private JScrollPane metadataScrollPane;
+    private JLayeredPane imagenLayeredPane;
+
     public ImagenesGaleria(PrincipalFrame principal) {
         this.principal = principal;
         setLayout(new BorderLayout());
@@ -39,31 +42,58 @@ public class ImagenesGaleria extends JPanel {
 
         tablaImagenes = new JTable(modeloTabla);
         tablaImagenes.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
         tablaImagenes.setAutoCreateRowSorter(true);
 
         tablaImagenes.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 int selectedRow = tablaImagenes.getSelectedRow();
                 if (selectedRow != -1) {
-                    String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
+                    int modelRow = tablaImagenes.convertRowIndexToModel(selectedRow);
+                    String rutaArchivo = (String) modeloTabla.getValueAt(modelRow, 1);
                     File archivo = new File(rutaArchivo);
                     mostrarVistaPrevia(archivo);
-                    mostrarMetadatosImagen(archivo);
+                    cargarMetadatosImagen(archivo);
                 }
             }
         });
 
         JScrollPane scrollPane = new JScrollPane(tablaImagenes);
 
+        btnMostrarMetadatos = new JButton("i");
+        btnMostrarMetadatos.setMargin(new Insets(1, 1, 1, 1));
+        btnMostrarMetadatos.setPreferredSize(new Dimension(20, 20));
+        btnMostrarMetadatos.addActionListener(e -> toggleMetadataDisplay());
+
+        metadataTextArea = new JTextArea();
+        metadataTextArea.setEditable(false);
+        metadataTextArea.setOpaque(true); 
+        metadataTextArea.setForeground(Color.WHITE);
+        metadataTextArea.setBackground(Color.BLACK); 
+
+        metadataScrollPane = new JScrollPane(metadataTextArea);
+        metadataScrollPane.setOpaque(false);
+        metadataScrollPane.getViewport().setOpaque(false);
+        metadataScrollPane.setVisible(false);
+
+        imagenLayeredPane = new JLayeredPane();
+        imagenLayeredPane.setPreferredSize(new Dimension(400, 400));
+
         vistaPreviaImagen = new JLabel();
         vistaPreviaImagen.setHorizontalAlignment(JLabel.CENTER);
         vistaPreviaImagen.setVerticalAlignment(JLabel.CENTER);
-        vistaPreviaImagen.setPreferredSize(new Dimension(400, 400));
+        vistaPreviaImagen.setBounds(0, 0, 400, 400);
+
+        imagenLayeredPane.add(vistaPreviaImagen, Integer.valueOf(1));
+
+        btnMostrarMetadatos.setBounds(5, 5, 20, 20);
+        imagenLayeredPane.add(btnMostrarMetadatos, Integer.valueOf(3));
+
+        metadataScrollPane.setBounds(50, 50, 300, 300);
+        imagenLayeredPane.add(metadataScrollPane, Integer.valueOf(2));
 
         JPanel panelVistaPrevia = new JPanel(new BorderLayout());
         panelVistaPrevia.add(new JLabel("Vista Previa"), BorderLayout.NORTH);
-        panelVistaPrevia.add(vistaPreviaImagen, BorderLayout.CENTER);
+        panelVistaPrevia.add(imagenLayeredPane, BorderLayout.CENTER);
 
         JPanel panelNavegacion = new JPanel(new FlowLayout());
         btnAnterior = new JButton("⬅️ Anterior");
@@ -92,8 +122,8 @@ public class ImagenesGaleria extends JPanel {
         if (rutaSeleccionada != null && rutaSeleccionada.isDirectory()) {
             List<File> archivosImagen = buscarArchivosImagen(rutaSeleccionada);
             for (File archivo : archivosImagen) {
-                long tamañoMB = archivo.length() / (1024 * 1024); 
-                espacioTotal += tamañoMB; 
+                long tamañoMB = archivo.length() / (1024 * 1024);
+                espacioTotal += tamañoMB;
                 modeloTabla.addRow(new Object[]{archivo.getName(), archivo.getAbsolutePath(), tamañoMB});
             }
             espacioTotalLabel.setText("Espacio total ocupado: " + espacioTotal + " MB");
@@ -141,7 +171,7 @@ public class ImagenesGaleria extends JPanel {
         }
     }
 
-    private void mostrarMetadatosImagen(File archivo) {
+    private void cargarMetadatosImagen(File archivo) {
         try {
             Metadata metadata = ImageMetadataReader.readMetadata(archivo);
             StringBuilder metadatos = new StringBuilder();
@@ -152,17 +182,15 @@ public class ImagenesGaleria extends JPanel {
                 }
             }
 
-            JTextArea areaTexto = new JTextArea(metadatos.toString());
-            areaTexto.setEditable(false);
-            areaTexto.setLineWrap(true);
-            areaTexto.setWrapStyleWord(true);
-            JScrollPane scrollPane = new JScrollPane(areaTexto);
-            scrollPane.setPreferredSize(new Dimension(400, 300));
-
-            JOptionPane.showMessageDialog(this, scrollPane, "Metadatos de Imagen", JOptionPane.INFORMATION_MESSAGE);
+            metadataTextArea.setText(metadatos.toString());
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "No se pueden extraer metadatos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            metadataTextArea.setText("No se pueden extraer metadatos: " + e.getMessage());
         }
+    }
+
+    private void toggleMetadataDisplay() {
+        boolean isVisible = metadataScrollPane.isVisible();
+        metadataScrollPane.setVisible(!isVisible);
     }
 }

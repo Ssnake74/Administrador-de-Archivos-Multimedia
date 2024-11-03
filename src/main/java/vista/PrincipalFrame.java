@@ -136,4 +136,8 @@ public class PrincipalFrame extends JFrame {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new PrincipalFrame().setVisible(true));
     }
+
+    Object getMainPanel() {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
 }

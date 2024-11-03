@@ -20,7 +20,7 @@ public class ArchivoDuplicadoDetector extends JPanel {
     private PrincipalFrame principal;
     private JTable tablaDuplicados;
     private DefaultTableModel modeloTabla;
-    private JButton btnEliminarDuplicados;  // Declaración del botón de eliminación
+    private JButton btnEliminarDuplicados; 
     private Map<String, List<File>> archivosDuplicados;
 
     public ArchivoDuplicadoDetector(PrincipalFrame principal) {
@@ -39,13 +39,12 @@ public class ArchivoDuplicadoDetector extends JPanel {
         tablaDuplicados = new JTable(modeloTabla);
         JScrollPane scrollPane = new JScrollPane(tablaDuplicados);
 
-        // Inicializar el botón de eliminación
         btnEliminarDuplicados = new JButton("Eliminar Seleccionados");
         btnEliminarDuplicados.addActionListener(e -> eliminarDuplicados());
-        btnEliminarDuplicados.setVisible(false);  // Iniciar el botón como oculto
+        btnEliminarDuplicados.setVisible(false);  
 
         JPanel panelBotones = new JPanel();
-        panelBotones.add(btnEliminarDuplicados);  // Añadir el botón al panel de botones
+        panelBotones.add(btnEliminarDuplicados);  
 
         add(scrollPane, BorderLayout.CENTER);
         add(panelBotones, BorderLayout.SOUTH);
@@ -68,7 +67,7 @@ public class ArchivoDuplicadoDetector extends JPanel {
                     modeloTabla.addRow(new Object[]{
                         archivo.getName(),
                         archivo.getAbsolutePath(),
-                        archivo.length() / 1024 + " KB"  // Tamaño en KB
+                        archivo.length() / 1024 + " KB"  
                     });
                 }
             }
@@ -147,7 +146,6 @@ public class ArchivoDuplicadoDetector extends JPanel {
         JOptionPane.showMessageDialog(this, "Archivos seleccionados eliminados.");
     }
 
-    // Getter para acceder al botón desde PrincipalFrame
     public JButton getBtnEliminarDuplicados() {
         return btnEliminarDuplicados;
     }

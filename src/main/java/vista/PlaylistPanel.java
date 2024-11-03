@@ -26,6 +26,10 @@ public class PlaylistPanel extends JPanel {
         cargarPlaylists();
     }
 
+    PlaylistPanel() {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
     private void initUI() {
         JPanel panelSuperior = new JPanel(new FlowLayout());
         comboPlaylists = new JComboBox<>();
@@ -46,12 +50,16 @@ public class PlaylistPanel extends JPanel {
         JButton btnGuardarPlaylist = new JButton("Guardar Playlist");
         btnGuardarPlaylist.addActionListener(e -> guardarPlaylists());
 
+        JButton btnRegresar = new JButton("Regresar");
+        btnRegresar.addActionListener(e -> regresar());
+
         panelSuperior.add(comboPlaylists);
         panelSuperior.add(btnCrearPlaylist);
         panelSuperior.add(btnEliminarPlaylist);
         panelSuperior.add(btnAgregarCancion);
         panelSuperior.add(btnEliminarCancion);
         panelSuperior.add(btnGuardarPlaylist);
+        panelSuperior.add(btnRegresar);
 
         add(panelSuperior, BorderLayout.NORTH);
 
@@ -77,7 +85,8 @@ public class PlaylistPanel extends JPanel {
         if (index != -1) {
             playlists.remove(index);
             comboPlaylists.removeItemAt(index);
-            modeloTabla.setRowCount(0); 
+            modeloTabla.setRowCount(0);
+            guardarPlaylists();
             JOptionPane.showMessageDialog(this, "Playlist eliminada.");
         }
     }
@@ -94,21 +103,54 @@ public class PlaylistPanel extends JPanel {
     }
 
     private void agregarCancion() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-        fileChooser.setMultiSelectionEnabled(true);
-        if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            File[] archivosSeleccionados = fileChooser.getSelectedFiles();
-            int index = comboPlaylists.getSelectedIndex();
-            if (index != -1) {
-                Playlist playlist = playlists.get(index);
-                for (File archivo : archivosSeleccionados) {
-                    String ruta = archivo.getAbsolutePath();
-                    playlist.agregarCancion(ruta);
-                    modeloTabla.addRow(new Object[]{ruta});
+        File carpetaSeleccionada = principal.getRutaSeleccionada();
+
+        if (carpetaSeleccionada == null || !carpetaSeleccionada.isDirectory()) {
+            JOptionPane.showMessageDialog(this, "Seleccione una carpeta primero desde la interfaz principal.");
+            return;
+        }
+
+        List<File> archivosMusica = buscarArchivosMusica(carpetaSeleccionada);
+        if (archivosMusica.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No se encontraron archivos de música (mp3, wma) en la carpeta seleccionada.");
+            return;
+        }
+
+        Object[] opciones = archivosMusica.stream().map(File::getName).toArray();
+        List<String> seleccionados = new ArrayList<>();
+        JList<Object> listaArchivos = new JList<>(opciones);
+        listaArchivos.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        int resultado = JOptionPane.showConfirmDialog(this, new JScrollPane(listaArchivos), "Seleccione las canciones a agregar", JOptionPane.OK_CANCEL_OPTION);
+
+        if (resultado == JOptionPane.OK_OPTION) {
+            int[] indicesSeleccionados = listaArchivos.getSelectedIndices();
+            for (int i : indicesSeleccionados) {
+                seleccionados.add(archivosMusica.get(i).getAbsolutePath());
+            }
+        }
+
+        int index = comboPlaylists.getSelectedIndex();
+        if (index != -1 && !seleccionados.isEmpty()) {
+            Playlist playlist = playlists.get(index);
+            for (String ruta : seleccionados) {
+                playlist.agregarCancion(ruta);
+                modeloTabla.addRow(new Object[]{ruta});
+            }
+            guardarPlaylists();
+        }
+    }
+
+    private List<File> buscarArchivosMusica(File directorio) {
+        List<File> archivosMusica = new ArrayList<>();
+        File[] archivos = directorio.listFiles();
+        if (archivos != null) {
+            for (File archivo : archivos) {
+                if (archivo.isFile() && (archivo.getName().toLowerCase().endsWith(".mp3") || archivo.getName().toLowerCase().endsWith(".wma"))) {
+                    archivosMusica.add(archivo);
                 }
             }
         }
+        return archivosMusica;
     }
 
     private void eliminarCancion() {
@@ -118,12 +160,13 @@ public class PlaylistPanel extends JPanel {
             Playlist playlist = playlists.get(playlistIndex);
             playlist.getCanciones().remove(selectedRow);
             modeloTabla.removeRow(selectedRow);
+            guardarPlaylists();
         }
     }
 
     private void guardarPlaylists() {
         Gson gson = new Gson();
-        try (FileWriter writer = new FileWriter("C:\\Users\\julit\\Desktop\\ProyectoFinal_JulioSagastume\\playlist\\playlists.json")) {
+        try (FileWriter writer = new FileWriter("playlists.json")) {
             gson.toJson(playlists, writer);
             JOptionPane.showMessageDialog(this, "Playlists guardadas exitosamente.");
         } catch (IOException e) {
@@ -133,7 +176,7 @@ public class PlaylistPanel extends JPanel {
 
     private void cargarPlaylists() {
         Gson gson = new Gson();
-        try (FileReader reader = new FileReader("C:\\Users\\julit\\Desktop\\ProyectoFinal_JulioSagastume\\playlist\\playlists.json")) {
+        try (FileReader reader = new FileReader("playlists.json")) {
             Type playlistListType = new TypeToken<List<Playlist>>(){}.getType();
             playlists = gson.fromJson(reader, playlistListType);
 
@@ -151,5 +194,15 @@ public class PlaylistPanel extends JPanel {
             return playlists.get(index);
         }
         return null;
+    }
+
+    private void regresar() {
+        if (principal.getMainPanel() instanceof JPanel) {
+            JPanel mainPanel = (JPanel) principal.getMainPanel();
+            if (mainPanel.getLayout() instanceof CardLayout) {
+                CardLayout cardLayout = (CardLayout) mainPanel.getLayout();
+                cardLayout.show(mainPanel, "musica");
+            }
+        }
     }
 }

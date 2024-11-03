@@ -25,6 +25,10 @@ public class ReproductorVideoPanel extends JPanel {
     private JButton btnPausa, btnSiguiente, btnAnterior;
     private Timer actualizacionProgreso;
     private JLabel espacioTotalLabel;
+    private JButton btnMostrarMetadatos;
+    private JTextArea metadataTextArea;
+    private JScrollPane metadataScrollPane;
+    private JLayeredPane videoLayeredPane;
 
     public ReproductorVideoPanel(PrincipalFrame principal) {
         this.principal = principal;
@@ -47,10 +51,11 @@ public class ReproductorVideoPanel extends JPanel {
             if (!e.getValueIsAdjusting()) {
                 int selectedRow = tablaVideos.getSelectedRow();
                 if (selectedRow != -1) {
-                    String rutaArchivo = (String) modeloTabla.getValueAt(selectedRow, 1);
+                    int modelRow = tablaVideos.convertRowIndexToModel(selectedRow);
+                    String rutaArchivo = (String) modeloTabla.getValueAt(modelRow, 1);
                     File archivo = new File(rutaArchivo);
                     reproducirVideo(archivo);
-                    mostrarMetadatosVideo(archivo);
+                    cargarMetadatosVideo(archivo);
                 }
             }
         });
@@ -58,7 +63,7 @@ public class ReproductorVideoPanel extends JPanel {
         JScrollPane scrollPane = new JScrollPane(tablaVideos);
 
         JPanel panelControl = new JPanel();
-        btnPausa = new JButton("Pausa/Reanudar");
+        btnPausa = new JButton("Pausa");
         btnPausa.addActionListener(e -> pausarReanudar());
 
         btnSiguiente = new JButton("Siguiente");
@@ -84,13 +89,38 @@ public class ReproductorVideoPanel extends JPanel {
         panelControl.add(btnSiguiente);
         panelControl.add(barraProgreso);
 
-        mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
-
         espacioTotalLabel = new JLabel("Espacio total ocupado: Calculando...");
         panelControl.add(espacioTotalLabel);
 
+        mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
+
+        btnMostrarMetadatos = new JButton("!");
+        btnMostrarMetadatos.setMargin(new Insets(2, 2, 2, 2));
+        btnMostrarMetadatos.addActionListener(e -> toggleMetadataDisplay());
+
+        metadataTextArea = new JTextArea();
+        metadataTextArea.setEditable(false);
+        metadataTextArea.setOpaque(false);
+        metadataTextArea.setForeground(Color.WHITE);
+
+        metadataScrollPane = new JScrollPane(metadataTextArea);
+        metadataScrollPane.setOpaque(false);
+        metadataScrollPane.getViewport().setOpaque(false);
+        metadataScrollPane.setVisible(false);
+
+        videoLayeredPane = new JLayeredPane();
+        videoLayeredPane.setPreferredSize(new Dimension(600, 400));
+
+        mediaPlayerComponent.setBounds(0, 0, 600, 400);
+        videoLayeredPane.add(mediaPlayerComponent, Integer.valueOf(1));
+
+        btnMostrarMetadatos.setBounds(10, 10, 30, 30);
+        videoLayeredPane.add(btnMostrarMetadatos, Integer.valueOf(3));
+
+        metadataScrollPane.setBounds(50, 50, 500, 300);
+        videoLayeredPane.add(metadataScrollPane, Integer.valueOf(2));
         add(scrollPane, BorderLayout.WEST);
-        add(mediaPlayerComponent, BorderLayout.CENTER);
+        add(videoLayeredPane, BorderLayout.CENTER);
         add(panelControl, BorderLayout.SOUTH);
     }
 
@@ -102,7 +132,7 @@ public class ReproductorVideoPanel extends JPanel {
         if (rutaSeleccionada != null && rutaSeleccionada.isDirectory()) {
             List<File> archivosVideo = buscarArchivosVideo(rutaSeleccionada);
             for (File archivo : archivosVideo) {
-                long tamañoMB = archivo.length() / (1024 * 1024); 
+                long tamañoMB = archivo.length() / (1024 * 1024);
                 espacioTotal += tamañoMB;
                 modeloTabla.addRow(new Object[]{archivo.getName(), archivo.getAbsolutePath(), tamañoMB});
             }
@@ -117,7 +147,7 @@ public class ReproductorVideoPanel extends JPanel {
             for (File archivo : archivos) {
                 if (archivo.isDirectory()) {
                     archivosVideo.addAll(buscarArchivosVideo(archivo));
-                } else if (archivo.getName().endsWith(".mp4") || archivo.getName().endsWith(".flv")) {
+                } else if (archivo.getName().toLowerCase().endsWith(".mp4") || archivo.getName().toLowerCase().endsWith(".flv")) {
                     archivosVideo.add(archivo);
                 }
             }
@@ -157,15 +187,27 @@ public class ReproductorVideoPanel extends JPanel {
 
     private void reproducirSiguiente() {
         int selectedRow = tablaVideos.getSelectedRow();
-        if (selectedRow != -1 && selectedRow < modeloTabla.getRowCount() - 1) {
-            tablaVideos.setRowSelectionInterval(selectedRow + 1, selectedRow + 1);
+        if (selectedRow != -1 && selectedRow < tablaVideos.getRowCount() - 1) {
+            int nextRow = selectedRow + 1;
+            int modelRow = tablaVideos.convertRowIndexToModel(nextRow);
+            tablaVideos.setRowSelectionInterval(nextRow, nextRow);
+            String rutaArchivo = (String) modeloTabla.getValueAt(modelRow, 1);
+            File archivo = new File(rutaArchivo);
+            cargarMetadatosVideo(archivo);
+            reproducirVideo(archivo);
         }
     }
 
     private void reproducirAnterior() {
         int selectedRow = tablaVideos.getSelectedRow();
         if (selectedRow > 0) {
-            tablaVideos.setRowSelectionInterval(selectedRow - 1, selectedRow - 1);
+            int prevRow = selectedRow - 1;
+            int modelRow = tablaVideos.convertRowIndexToModel(prevRow);
+            tablaVideos.setRowSelectionInterval(prevRow, prevRow);
+            String rutaArchivo = (String) modeloTabla.getValueAt(modelRow, 1);
+            File archivo = new File(rutaArchivo);
+            cargarMetadatosVideo(archivo);
+            reproducirVideo(archivo);
         }
     }
 
@@ -179,7 +221,7 @@ public class ReproductorVideoPanel extends JPanel {
         }
     }
 
-    private void mostrarMetadatosVideo(File archivo) {
+    private void cargarMetadatosVideo(File archivo) {
         try {
             Metadata metadata = ImageMetadataReader.readMetadata(archivo);
 
@@ -191,15 +233,15 @@ public class ReproductorVideoPanel extends JPanel {
                 }
             }
 
-            JTextArea textArea = new JTextArea(metadatos.toString());
-            textArea.setEditable(false);
-            JScrollPane scrollPane = new JScrollPane(textArea);
-            scrollPane.setPreferredSize(new Dimension(400, 300));
-
-            JOptionPane.showMessageDialog(this, scrollPane, "Metadatos de Video", JOptionPane.INFORMATION_MESSAGE);
+            metadataTextArea.setText(metadatos.toString());
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "No se pueden extraer metadatos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            metadataTextArea.setText("No se pueden extraer metadatos: " + e.getMessage());
         }
+    }
+
+    private void toggleMetadataDisplay() {
+        boolean isVisible = metadataScrollPane.isVisible();
+        metadataScrollPane.setVisible(!isVisible);
     }
 }

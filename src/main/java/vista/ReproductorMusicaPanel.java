@@ -16,13 +16,12 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.table.TableRowSorter;
 import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent;
-import java.io.FileWriter;
-import java.io.FileReader;
-import java.io.IOException;
+import modelo.Playlist;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
-import modelo.Playlist;
+import java.io.FileReader;
+import java.io.IOException;
 
 public class ReproductorMusicaPanel extends JPanel {
 
@@ -36,11 +35,17 @@ public class ReproductorMusicaPanel extends JPanel {
     private JPanel panelControl;
     private JLabel espacioTotalLabel;
     private List<Playlist> playlists = new ArrayList<>();
+    private JTextArea metadataTextArea;
+    private JComboBox<String> playlistComboBox;
+    private List<File> archivosMusica = new ArrayList<>();
+    private List<File> archivosMostrados = new ArrayList<>();
 
     public ReproductorMusicaPanel(PrincipalFrame principal) {
         this.principal = principal;
         setLayout(new BorderLayout());
         initUI();
+        cargarPlaylists();
+        actualizarPlaylistComboBox();
     }
 
     private void initUI() {
@@ -54,7 +59,7 @@ public class ReproductorMusicaPanel extends JPanel {
 
         TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(modeloTabla);
         tablaMusica.setRowSorter(sorter);
-        
+
         espacioTotalLabel = new JLabel("Espacio total ocupado por archivos de música: 0 MB");
 
         tablaMusica.getSelectionModel().addListSelectionListener(e -> {
@@ -71,9 +76,9 @@ public class ReproductorMusicaPanel extends JPanel {
 
         JScrollPane scrollPane = new JScrollPane(tablaMusica);
 
-        panelControl = new JPanel();
-        
-        btnPausa = new JButton("Pausa/Reanudar");
+        panelControl = new JPanel(new BorderLayout());
+
+        btnPausa = new JButton("Pausa");
         btnPausa.addActionListener(e -> pausarReanudar());
 
         btnSiguiente = new JButton("Siguiente");
@@ -97,38 +102,64 @@ public class ReproductorMusicaPanel extends JPanel {
             }
         });
 
-        panelControl.add(btnAnterior);
-        panelControl.add(btnPausa);
-        panelControl.add(btnSiguiente);
-        panelControl.add(barraProgreso);
-        panelControl.add(btnGestionPlaylists);
+        panelControl.add(barraProgreso, BorderLayout.CENTER);
+
+        JPanel controlsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        controlsPanel.add(btnAnterior);
+        controlsPanel.add(btnPausa);
+        controlsPanel.add(btnSiguiente);
+        controlsPanel.add(btnGestionPlaylists);
+
+        panelControl.add(controlsPanel, BorderLayout.EAST);
 
         mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
 
+        metadataTextArea = new JTextArea();
+        metadataTextArea.setEditable(false);
+        JScrollPane metadataScrollPane = new JScrollPane(metadataTextArea);
+        metadataScrollPane.setPreferredSize(new Dimension(300, 150));
+
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.add(metadataScrollPane, BorderLayout.NORTH);
+        centerPanel.add(mediaPlayerComponent, BorderLayout.CENTER);
+
+        playlistComboBox = new JComboBox<>();
+        playlistComboBox.addItem("Todas las canciones");
+        playlistComboBox.addActionListener(e -> actualizarListaCanciones());
+
+        JPanel panelSuperior = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panelSuperior.add(espacioTotalLabel);
+        panelSuperior.add(new JLabel(" | Seleccionar Playlist: "));
+        panelSuperior.add(playlistComboBox);
+
+        add(panelSuperior, BorderLayout.NORTH);
         add(scrollPane, BorderLayout.WEST);
-        add(mediaPlayerComponent, BorderLayout.CENTER);
+        add(centerPanel, BorderLayout.CENTER);
         add(panelControl, BorderLayout.SOUTH);
-        
-        JPanel panelEspacioTotal = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panelEspacioTotal.add(espacioTotalLabel);
-        add(panelEspacioTotal, BorderLayout.NORTH);
     }
 
     public void cargarArchivos() {
         modeloTabla.setRowCount(0);
+        archivosMusica.clear();
 
         File rutaSeleccionada = principal.getRutaSeleccionada();
         if (rutaSeleccionada != null && rutaSeleccionada.isDirectory()) {
-            List<File> archivosMusica = buscarArchivosMusica(rutaSeleccionada);
-            long espacioTotal = 0;
-
-            for (File archivo : archivosMusica) {
-                long tamañoEnMB = archivo.length() / (1024 * 1024);
-                espacioTotal += archivo.length();
-                modeloTabla.addRow(new Object[]{archivo.getName(), archivo.getAbsolutePath(), tamañoEnMB});
-            }
-            espacioTotalLabel.setText("Espacio total ocupado por archivos de música: " + espacioTotal / (1024 * 1024) + " MB");
+            archivosMusica = buscarArchivosMusica(rutaSeleccionada);
+            archivosMostrados = new ArrayList<>(archivosMusica);
+            mostrarArchivosEnTabla(archivosMostrados);
         }
+    }
+
+    private void mostrarArchivosEnTabla(List<File> archivos) {
+        modeloTabla.setRowCount(0);
+        long espacioTotal = 0;
+
+        for (File archivo : archivos) {
+            long tamañoEnMB = archivo.length() / (1024 * 1024);
+            espacioTotal += archivo.length();
+            modeloTabla.addRow(new Object[]{archivo.getName(), archivo.getAbsolutePath(), tamañoEnMB});
+        }
+        espacioTotalLabel.setText("Espacio total ocupado por archivos de música: " + espacioTotal / (1024 * 1024) + " MB");
     }
 
     private List<File> buscarArchivosMusica(File directorio) {
@@ -138,7 +169,7 @@ public class ReproductorMusicaPanel extends JPanel {
             for (File archivo : archivos) {
                 if (archivo.isDirectory()) {
                     archivosMusica.addAll(buscarArchivosMusica(archivo));
-                } else if (archivo.getName().endsWith(".mp3") || archivo.getName().endsWith(".wma")) {
+                } else if (archivo.getName().toLowerCase().endsWith(".mp3") || archivo.getName().toLowerCase().endsWith(".wma")) {
                     archivosMusica.add(archivo);
                 }
             }
@@ -175,18 +206,30 @@ public class ReproductorMusicaPanel extends JPanel {
     }
 
     private void reproducirSiguiente() {
-        int selectedRow = tablaMusica.getSelectedRow();
-        if (selectedRow != -1 && selectedRow < modeloTabla.getRowCount() - 1) {
-            tablaMusica.setRowSelectionInterval(selectedRow + 1, selectedRow + 1);
-        }
+    int selectedRow = tablaMusica.getSelectedRow();
+    if (selectedRow != -1 && selectedRow < tablaMusica.getRowCount() - 1) {
+        int nextRow = selectedRow + 1;
+        int modelRow = tablaMusica.convertRowIndexToModel(nextRow);
+        String rutaArchivo = (String) modeloTabla.getValueAt(modelRow, 1);
+        File archivo = new File(rutaArchivo);
+        mostrarMetadatosMusica(archivo);
+        reproducirMusica(archivo);
+        tablaMusica.setRowSelectionInterval(nextRow, nextRow);
     }
+}
 
-    private void reproducirAnterior() {
-        int selectedRow = tablaMusica.getSelectedRow();
-        if (selectedRow > 0) {
-            tablaMusica.setRowSelectionInterval(selectedRow - 1, selectedRow - 1);
-        }
+private void reproducirAnterior() {
+    int selectedRow = tablaMusica.getSelectedRow();
+    if (selectedRow > 0) {
+        int prevRow = selectedRow - 1;
+        int modelRow = tablaMusica.convertRowIndexToModel(prevRow);
+        String rutaArchivo = (String) modeloTabla.getValueAt(modelRow, 1);
+        File archivo = new File(rutaArchivo);
+        mostrarMetadatosMusica(archivo);
+        reproducirMusica(archivo);
+        tablaMusica.setRowSelectionInterval(prevRow, prevRow);
     }
+}
 
     private void detenerReproduccion() {
         if (mediaPlayerComponent.mediaPlayer() != null) {
@@ -199,6 +242,7 @@ public class ReproductorMusicaPanel extends JPanel {
     }
 
     private void mostrarMetadatosMusica(File archivo) {
+        StringBuilder metadatos = new StringBuilder();
         try {
             if (archivo.getName().toLowerCase().endsWith(".mp3")) {
                 AudioFile audioFile = AudioFileIO.read(archivo);
@@ -210,36 +254,27 @@ public class ReproductorMusicaPanel extends JPanel {
                 String duracion = audioFile.getAudioHeader().getTrackLength() + " segundos";
                 String año = (tag != null && tag.getFirst(FieldKey.YEAR) != null) ? tag.getFirst(FieldKey.YEAR) : "Desconocido";
 
-                JOptionPane.showMessageDialog(this,
-                        "Artista: " + artista + "\n" +
-                                "Álbum: " + album + "\n" +
-                                "Género: " + genero + "\n" +
-                                "Duración: " + duracion + "\n" +
-                                "Año: " + año,
-                        "Metadatos de Música (MP3)",
-                        JOptionPane.INFORMATION_MESSAGE);
+                metadatos.append("Artista: ").append(artista).append("\n")
+                        .append("Álbum: ").append(album).append("\n")
+                        .append("Género: ").append(genero).append("\n")
+                        .append("Duración: ").append(duracion).append("\n")
+                        .append("Año: ").append(año);
 
             } else if (archivo.getName().toLowerCase().endsWith(".wma")) {
                 Tika tika = new Tika();
                 Metadata metadata = new Metadata();
                 tika.parse(archivo, metadata);
 
-                StringBuilder metadatos = new StringBuilder();
                 for (String nombre : metadata.names()) {
                     metadatos.append(nombre).append(": ").append(metadata.get(nombre)).append("\n");
                 }
-
-                JOptionPane.showMessageDialog(this,
-                        metadatos.toString(),
-                        "Metadatos de Música (WMA)",
-                        JOptionPane.INFORMATION_MESSAGE);
-
             } else {
-                JOptionPane.showMessageDialog(this, "Formato de archivo no soportado para metadatos", "Error", JOptionPane.ERROR_MESSAGE);
+                metadatos.append("Formato de archivo no soportado para metadatos");
             }
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "No se pueden extraer metadatos: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            metadatos.append("No se pueden extraer metadatos: ").append(e.getMessage());
         }
+        metadataTextArea.setText(metadatos.toString());
     }
 
     private void abrirPlaylistPanel() {
@@ -251,6 +286,59 @@ public class ReproductorMusicaPanel extends JPanel {
         playlistDialog.add(playlistPanel);
 
         playlistDialog.setVisible(true);
+        cargarPlaylists();
+        actualizarPlaylistComboBox();
+    }
+
+    private void cargarPlaylists() {
+        playlists.clear();
+        try (FileReader reader = new FileReader("playlists.json")) {
+            Gson gson = new Gson();
+            Type playlistListType = new TypeToken<List<Playlist>>() {}.getType();
+            playlists = gson.fromJson(reader, playlistListType);
+        } catch (IOException e) {
+            System.out.println("No se pudieron cargar las playlists: " + e.getMessage());
+        }
+
+        if (playlists == null) {
+            playlists = new ArrayList<>();
+        }
+    }
+
+    private void actualizarPlaylistComboBox() {
+        playlistComboBox.removeAllItems();
+        playlistComboBox.addItem("Todas las canciones");
+        for (Playlist playlist : playlists) {
+            playlistComboBox.addItem(playlist.getNombre());
+        }
+    }
+
+    private void actualizarListaCanciones() {
+        String seleccion = (String) playlistComboBox.getSelectedItem();
+        if (seleccion != null) {
+            if (seleccion.equals("Todas las canciones")) {
+                archivosMostrados = new ArrayList<>(archivosMusica);
+                mostrarArchivosEnTabla(archivosMostrados);
+            } else {
+                Playlist playlistSeleccionada = null;
+                for (Playlist p : playlists) {
+                    if (p.getNombre().equals(seleccion)) {
+                        playlistSeleccionada = p;
+                        break;
+                    }
+                }
+                if (playlistSeleccionada != null) {
+                    archivosMostrados = new ArrayList<>();
+                    for (String ruta : playlistSeleccionada.getCanciones()) {
+                        File archivo = new File(ruta);
+                        if (archivo.exists()) {
+                            archivosMostrados.add(archivo);
+                        }
+                    }
+                    mostrarArchivosEnTabla(archivosMostrados);
+                }
+            }
+        }
     }
 
     private long calcularEspacioTotalMusica() {
